@@ -1,0 +1,170 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+MAKE SURE TO SET TO CORRECT WORKING DIRECTORY BEFORE RUNNING!
+
+```{r}
+# INSTALL THE EBIMAGE PACKAGE
+install.packages("BiocManager", verbose = TRUE)
+```
+```{r}
+BiocManager::install("EBImage")
+```
+```{r}
+# INSTALL THE JPEG PACKAGE
+install.packages("jpeg")
+```
+
+```{r}
+# LOAD PACKAGES IN LIBRARY
+library(EBImage)
+library(jpeg)
+```
+
+```{r}
+# LOAD THE FILE PATH TO AN EXISTING DIRECTORY CONTAINING YOUR ANNOTATED RGB IMAGES
+image_directory <- "FILE-PATH-TO-DIRECTORY"
+image_files <- list.files(path = image_directory, pattern = "\\.jpg", full.names = TRUE)
+image_files
+```
+
+```{r}
+# CREATE A FILE PATH TO A NEW, EMPTY DIRECTORY
+new_directory <- "FILE-PATH/new_directory"
+```
+
+```{r}
+# READ EACH RGB IMAGE INTO THE NEW DIRECTORY AND SAVE EACH IMAGE AS A JPG WITH A CONSISTENT FILE NAME FORMAT
+for (image_file in image_files) {
+  rgb_image <- readImage(image_file) 
+}
+
+for (i in 1:2) {
+  file_name <- paste0(new_directory, "/image_", i, ".jpg")
+  writeJPEG(rgb_image, file_name)
+  print(paste("Image file", file_name, "created and saved."))
+}
+```
+```{r}
+list.files(new_directory)
+```
+
+```{r}
+# PATH TO DIRECTORY CONTAINING IMAGES
+new_directory <- "FILE-PATH/new_directory/"
+
+#SET THE PATH FOR THE DESTINATION DIRECTORY TO STORE PROCESSED (RGB CONVERTED TO GRAYSCALE) IMAGES
+gray_img_directory <- "FILE-PATH/gray_img_directory/"
+
+# GET A LIST OF IMAGE FILES IN THE SOURCE DIRECTORY
+image_files <- list.files(new_directory, pattern = "\\.jpg", full.names = TRUE)
+
+# ITERATRE OVER THE IMAGE FILES
+for (image_file in image_files) {
+  # READ THE RGB IMAGE
+  rgb_image <- readImage(image_file)
+
+  # CONVERT RGB IMAGE TO GRAYSCALE
+  gray_image <- channel(rgb_image, 'grey')
+
+  # CONSTRUCT THE FILE PATH FOR THE PROCESSED IMAGE IN THE DESTINATION DIRECTORY
+  gray_img_file_path <- file.path(gray_img_directory, basename(image_file))
+
+  # SAVE THE PROCESSED IMAGE IN THE DESTINATION DIRECTORY
+  writeImage(gray_image, gray_img_file_path)
+
+  print(paste("Processed image saved:", gray_img_file_path))
+}
+```
+```{r}
+list.files(gray_img_directory)
+```
+```{r}
+# SET THE PATH FOR THE SOURCE DIRECTORY CONTAINING YOUR IMAGES
+gray_img_directory <- "FILE-PATH/gray_img_directory/"
+
+# SET THE PATH FOR THE DESTINATION DIRECTORY TO STORE PROCESSED (GRAYSCALE CONVERTED TO BINARY) IMAGES
+binary_img_directory <- "FILE-PATH/binary_img_directory/"
+
+# GET A LIST OF IMAGE FILES IN THE SOURCE DIRECTORY
+image_files <- list.files(gray_img_directory, pattern = "\\.jpg", full.names = TRUE)
+
+# ITERATRE OVER THE IMAGE FILES
+for (image_file in image_files) {
+  # READ THE GRAY IMAGE
+  gray_image <- readImage(image_file)
+
+  # CONVERT GRAY IMAGE TO BINARY
+  # ANY VALUE > 0.5 WILL BE READ AS 1 (WHITE) AND ANY VALUE < 0.5 WILL BE READ AS 0 (BLACK)
+  # THIS VALUE CAN BE CHANGED TO FIT YOUR NEEDS
+  binary_image <- gray_image > 0.5
+
+  # CONSTRUCT THE FILE PATH FOR THE PROCESSED IMAGE IN THE DESTINATION DIRECTORY
+  binary_img_file_path <- file.path(binary_img_directory, basename(image_file))
+
+  # SAVE THE PROCESSED IMAGE IN THE DESTINATION DIRECTORY
+  writeImage(binary_image, binary_img_file_path)
+
+  print(paste("Processed image saved:", binary_img_file_path))
+}
+```
+```{r}
+# SET THE PATH FOR THE SOURCE DIRECTORY CONTAINING YOUR IMAGES
+binary_img_directory <- "FILE-PATH/binary_img_directory/"
+
+# SET THE PATH FOR THE DESTINATION DIRECTORY TO STORE MATRIX OUTPUTS
+binary_matrix_directory <- "FILE-PATH/binary_matrix_directory/"
+
+# GET A LIST OF IMAGE FILES IN THE SOURCE DIRECTORY
+image_files <- list.files(binary_img_directory, pattern = "\\.jpg", full.names = TRUE)
+
+# ITERATE OVER THE IMAGE FILES
+for (image_file in image_files) {
+  # READ THE BINARY IMAGE
+  binary_image <- readImage(image_file)
+  
+  # CONVERT BINARY IMAGE TO BINARY MATRIX
+  binary_matrix <- as.matrix(binary_image)
+  
+  # CONSTRUCT THE FILE PATH FOR THE PROCESSED MATRIX IN THE DESTINATION DIRECTORY
+  # USE BASENAME TO EXTRACT THE FILE NAME WITHOUT THE PATH AND EXTENSION
+  filename <- paste0(tools::file_path_sans_ext(basename(image_file)), "_binary_matrix.csv")
+  
+  binary_matrix_file_path <- file.path(binary_matrix_directory, filename)
+
+  # SAVE THE PROCESSED MATRIX IN THE DESTINATION DIRECTORY
+  write.csv(binary_matrix, binary_matrix_file_path)
+}
+```
+
+```{r}
+# SET THE PATH FOR THE SOURCE DIRECTORY CONTAINING YOUR BINARY MATRICES CORRESPONDING TO EACH IMAGE
+binary_matrix_directory <- "RImageJ_integration/binary_matrix_directory/"
+
+# CREATE AN EMPTY DATAFRAME TO STORE CALCULATED VALUES
+areas_df <- data.frame(File = character(), AreaValue = numeric(), AreaValueCM = numeric(), stringsAsFactors = FALSE)
+
+# GET A LIST OF IMAGE FILES IN THE SOURCE DIRECTORY
+matrix_files <- list.files(binary_matrix_directory, pattern = "\\.csv", full.names = TRUE)
+
+# ITERATE OVER THE MATRIX FILES
+for (matrix_file in matrix_files) {
+  # READ THE MATRIX FILE
+  binary_csv <- read.csv(matrix_file)
+
+  # CALCULATE THE AREA OF PIXELS WITH A VALUE OF 0 (BLACK)
+  # AGAIN, THIS VALUE CAN BE CHANGED TO FIT YOUR NEEDS
+  binary_area <- sum(binary_csv == 0)
+  
+  # USE A CONVERSION FACTOR TO CALCULATE THE AREA IN CM FROM THE AREA IN PIXELS (DETERMINE THIS USING IMAGEJ - MAKE SURE THE SCALE FOR ALL YOUR PHOTOS IS CONSISTENT)
+  binary_area_cm <- binary_area / 62500
+
+  # APPEND THE CALCULATED VALUES TO THE DATAFRAME
+  areas_df <- rbind(areas_df, data.frame(File = matrix_file, AreaValue = binary_area, AreaValueCM = binary_area_cm))
+}
+
+# DISPLAY THE RESULTING DATAFRAME
+print(areas_df)
+```
